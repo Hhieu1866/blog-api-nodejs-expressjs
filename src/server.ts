@@ -24,6 +24,11 @@ app.use(errorHandler);
 //   res.json({ status: "OK" });
 // });
 
+// /
+app.get("/", (req, res) => {
+  res.send("Test Blog API nhe cac con vo");
+});
+
 // swagger docs
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
