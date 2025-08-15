@@ -1,4 +1,5 @@
 import express from "express";
+import { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
@@ -25,7 +26,7 @@ app.use(errorHandler);
 // });
 
 // /
-app.get("/", (req, res) => {
+app.get("/", (req: Request, res: Response) => {
   res.send("Test Blog API nhe cac con vo");
 });
 
