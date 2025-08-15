@@ -10,7 +10,13 @@ const options: swaggerJSDoc.Options = {
       description: "API documentation for blog api",
       version: "1.0.0",
     },
-    servers: [{ url: "http://localhost:3000", description: "Local server" }],
+    servers: [
+      {
+        url: "https://blog-api-nodejs-expressjs.onrender.com/",
+        description:
+          "Production server for the Blog API, providing endpoints for authentication, posts, comments, categories, and tags",
+      },
+    ],
   },
   apis: [path.join(__dirname, "../routes/*.ts")],
 };
