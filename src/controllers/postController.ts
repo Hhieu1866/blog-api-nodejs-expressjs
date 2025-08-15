@@ -34,6 +34,7 @@ export const getPosts = async (req: Request, res: Response) => {
     const total = await prisma.post.count({ where });
 
     res.json({
+      message: "Posts retrieved successfully",
       data: posts,
       pagination: {
         total,
@@ -41,13 +42,13 @@ export const getPosts = async (req: Request, res: Response) => {
         limit: Number(limit),
       },
     });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to retrieve posts due to server error.", error: error.message });
   }
 };
 
 // GET - /api/posts/:id
-export const getPost = async (req: Request, res: Response) => {
+export const getPostById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -65,11 +66,11 @@ export const getPost = async (req: Request, res: Response) => {
       },
     });
 
-    if (!post) return res.status(404).json({ message: "post not found" });
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
-    res.json(post);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Post retrieved successfully", post });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to retrieve post due to server error.", error: error.message });
   }
 };
 
@@ -95,9 +96,9 @@ export const createPost = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json(post);
-  } catch {
-    res.status(500).json({ message: "Server error" });
+    res.status(201).json({ message: "Post created successfully", post });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to create post due to server error.", error: error.message });
   }
 };
 
@@ -127,9 +128,9 @@ export async function updatePost(req: Request, res: Response) {
       data,
     });
 
-    res.json(updated);
-  } catch {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Post updated successfully", post: updated });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to update post due to server error.", error: error.message });
   }
 }
 
@@ -141,8 +142,8 @@ export const deletePost = async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({ message: "post deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Post deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to delete post due to server error.", error: error.message });
   }
 };

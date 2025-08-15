@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 // export const  = async (req: Request, res: Response) => {}
 
 // GET - /api/users/:id
-export const getUser = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.body;
 
@@ -14,11 +14,11 @@ export const getUser = async (req: Request, res: Response) => {
       select: { id: true, email: true, name: true, createdAt: true },
     });
 
-    if (!user) return res.status(404).json({ message: "user not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "User retrieved successfully", user });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to retrieve user due to server error.", error: error.message });
   }
 };
 
@@ -41,9 +41,9 @@ export const updateUser = async (req: Request, res: Response) => {
       select: { id: true, email: true, name: true, createdAt: true },
     });
 
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "User updated successfully", user: updated });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to update user due to server error.", error: error.message });
   }
 };
 
@@ -55,8 +55,8 @@ export const deleteUser = async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({ message: "user deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "User deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to delete user due to server error.", error: error.message });
   }
 };

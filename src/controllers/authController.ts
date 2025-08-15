@@ -29,9 +29,13 @@ export const register = async (req: Request, res: Response) => {
     });
 
     const tokens = genTokens(user.id);
-    res.status(201).json({ user, ...tokens });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res
+      .status(201)
+      .json({ message: "User registered successfully", user, ...tokens });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ message: "Failed to register user due to server error.", error: error.message });
   }
 };
 
@@ -50,9 +54,9 @@ export const login = async (req: Request, res: Response) => {
 
     const tokens = genTokens(user.id);
 
-    res.json({ user, ...tokens });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "User logged in successfully", user, ...tokens });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to log in due to server error.", error: error.message });
   }
 };
 
@@ -61,7 +65,7 @@ export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
     if (!token)
-      return res.status(401).json({ message: "Refresh token missing" });
+      return res.status(401).json({ message: "Refresh token is missing" });
 
     const decoded: any = jwt.verify(
       token,
@@ -70,13 +74,13 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     const tokens = genTokens(decoded.uid);
 
-    res.json(tokens);
-  } catch (error) {
-    res.status(403).json({ message: "Invalid refresh token" });
+    res.json({ message: "Access token refreshed successfully", ...tokens });
+  } catch (error: any) {
+    res.status(403).json({ message: "Invalid refresh token", error: error.message });
   }
 };
 
 // POST - /api/auth/logout
 export async function logout(_req: Request, res: Response) {
-  res.json({ message: "Logged out successfully" });
+  res.json({ message: "User logged out successfully" });
 }

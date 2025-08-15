@@ -2,11 +2,11 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 
 // GET - /api/posts/:postId/comments
-export const getCommentByPost = async (req: Request, res: Response) => {
+export const getCommentsByPost = async (req: Request, res: Response) => {
   try {
     const { postId } = req.params;
 
-    const comments = prisma.comment.findMany({
+    const comments = await prisma.comment.findMany({
       where: { postId },
       include: {
         author: {
@@ -20,9 +20,9 @@ export const getCommentByPost = async (req: Request, res: Response) => {
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(comments);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Comments retrieved successfully", comments });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to retrieve comments due to server error.", error: error.message });
   }
 };
 
@@ -33,7 +33,7 @@ export const createComment = async (req: Request, res: Response) => {
     const { content } = req.body;
 
     if (!content)
-      return res.status(400).json({ message: "Content is required" });
+      return res.status(400).json({ message: "Comment content is required" });
 
     const comment = await prisma.comment.create({
       data: {
@@ -43,9 +43,9 @@ export const createComment = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(comment);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(201).json({ message: "Comment created successfully", comment });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to create comment due to server error.", error: error.message });
   }
 };
 
@@ -56,16 +56,16 @@ export const updateComment = async (req: Request, res: Response) => {
     const { content } = req.body;
 
     if (!content)
-      return res.status(400).json({ message: "Content is required" });
+      return res.status(400).json({ message: "Comment content is required" });
 
     const updatedComment = await prisma.comment.update({
       where: { id },
       data: { content },
     });
 
-    res.json(updatedComment);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Comment updated successfully", comment: updatedComment });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to update comment due to server error.", error: error.message });
   }
 };
 
@@ -78,9 +78,9 @@ export const deleteComment = async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({ message: "comment deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.json({ message: "Comment deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to delete comment due to server error.", error: error.message });
   }
 };
 
