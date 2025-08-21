@@ -1,5 +1,7 @@
+// src/controllers/postController.ts
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
+import { createPostSchema, updatePostSchema } from "../schemas/postSchema";
 
 // GET - /api/posts (pagination + search + filter by cate)
 export const getPosts = async (req: Request, res: Response) => {
@@ -47,12 +49,10 @@ export const getPosts = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to retrieve posts due to server error.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Failed to retrieve posts due to server error.",
+      error: error.message,
+    });
   }
 };
 
@@ -79,20 +79,31 @@ export const getPostById = async (req: Request, res: Response) => {
 
     res.json({ message: "Post retrieved successfully", post });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to retrieve post due to server error.",
-        error: error.message,
-      });
+    if (error.code === "P2023") {
+      return res.status(400).json({ message: "Invalid post ID format" });
+    }
+    res.status(500).json({
+      message: "Failed to retrieve post due to server error.",
+      error: error.message,
+    });
   }
 };
 
 // POST - /api/posts
 export const createPost = async (req: Request, res: Response) => {
   try {
-    const { title, content, categoryId, tagIds } = req.body;
-    const userId = (req as any).user.uid; // lấy userId từ JWT
+    // Validation
+    const validationResult = createPostSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validationResult.error.format(),
+      });
+    }
+
+    const { title, content, categoryId, tagIds, published } =
+      validationResult.data;
+    const userId = (req as any).user.uid;
 
     const slug = title.toLowerCase().replace(/\s+/g, "-");
 
@@ -101,7 +112,7 @@ export const createPost = async (req: Request, res: Response) => {
         title,
         slug,
         content,
-        published: true,
+        published: published ?? true,
         authorId: userId,
         categoryId,
         tags: tagIds
@@ -112,67 +123,115 @@ export const createPost = async (req: Request, res: Response) => {
 
     res.status(201).json({ message: "Post created successfully", post });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to create post due to server error.",
-        error: error.message,
-      });
+    if (error.code === "P2002") {
+      return res
+        .status(409)
+        .json({ message: "Post with this title already exists" });
+    }
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Category or tag not found" });
+    }
+    res.status(500).json({
+      message: "Failed to create post due to server error.",
+      error: error.message,
+    });
   }
 };
 
 // PUT - /api/posts/:id
-export async function updatePost(req: Request, res: Response) {
+export const updatePost = async (req: Request, res: Response) => {
   try {
+    // Validation
+    const validationResult = updatePostSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validationResult.error.format(),
+      });
+    }
+
     const { id } = req.params;
-    const { title, content, categoryId, tagIds, published } = req.body;
+    const userId = (req as any).user.uid;
+    const data = validationResult.data;
 
-    const data: any = {};
-    if (title) {
-      data.title = title;
-      data.slug = title.toLowerCase().replace(/\s+/g, "-");
-    }
-    if (content) data.content = content;
-    if (typeof published === "boolean") data.published = published;
-    if (categoryId) data.categoryId = categoryId;
-    if (tagIds) {
-      data.tags = {
-        set: [], // xóa liên kết tag cũ
-        connect: tagIds.map((id: string) => ({ id })),
-      };
-    }
-
-    const updated = await prisma.post.update({
+    // Check authorization
+    const existingPost = await prisma.post.findUnique({
       where: { id },
-      data,
+      select: { authorId: true },
     });
 
-    res.json({ message: "Post updated successfully", post: updated });
+    if (!existingPost) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (existingPost.authorId !== userId) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized to update this post" });
+    }
+
+    // Prepare update data
+    const updateData: any = { ...data };
+    if (data.title) {
+      updateData.slug = data.title.toLowerCase().replace(/\s+/g, "-");
+    }
+
+    const updatedPost = await prisma.post.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json({ message: "Post updated successfully", post: updatedPost });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to update post due to server error.",
-        error: error.message,
-      });
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    if (error.code === "P2002") {
+      return res
+        .status(409)
+        .json({ message: "Post with this title already exists" });
+    }
+    res.status(500).json({
+      message: "Failed to update post due to server error.",
+      error: error.message,
+    });
   }
-}
+};
 
 // DELETE - /api/posts/:id
 export const deletePost = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user.uid;
+
+    // Check authorization
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: { authorId: true },
+    });
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (post.authorId !== userId) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized to delete this post" });
+    }
+
     await prisma.post.delete({
       where: { id },
     });
 
     res.json({ message: "Post deleted successfully" });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to delete post due to server error.",
-        error: error.message,
-      });
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.status(500).json({
+      message: "Failed to delete post due to server error.",
+      error: error.message,
+    });
   }
 };
