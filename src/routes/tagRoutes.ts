@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getTags, createTag } from "../controllers/tagController";
-import { authenticateToken } from "../middlewares/authMiddleware";
+import { authenticateToken, requireAdmin } from "../middlewares/authMiddleware";
 
 const router = Router();
 
@@ -29,7 +29,7 @@ router.get("/", getTags);
  * @swagger
  * /api/tags:
  *   post:
- *     summary: Create a new tag
+ *     summary: Create a new tag (Admin only)
  *     tags: [Tags]
  *     security:
  *       - bearerAuth: []
@@ -50,9 +50,11 @@ router.get("/", getTags);
  *         description: Tag created successfully
  *       400:
  *         description: Tag name is required
+ *       403:
+ *         description: Admin access required
  *       500:
  *         description: Failed to create tag due to server error.
  */
-router.post("/", authenticateToken, createTag);
+router.post("/", authenticateToken, requireAdmin, createTag);
 
 export default router;
