@@ -25,11 +25,11 @@ export const register = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: { 
-        email, 
-        name, 
+      data: {
+        email,
+        name,
         password: hashedPassword,
-        role: "USER" // Default role for new registrations
+        role: "USER", // Default role for new registrations
       },
       select: {
         id: true,
@@ -37,8 +37,8 @@ export const register = async (req: Request, res: Response) => {
         name: true,
         role: true,
         createdAt: true,
-        updatedAt: true
-      }
+        updatedAt: true,
+      },
     });
 
     const tokens = genTokens(user.id);
@@ -48,7 +48,10 @@ export const register = async (req: Request, res: Response) => {
   } catch (error: any) {
     res
       .status(500)
-      .json({ message: "Failed to register user due to server error.", error: error.message });
+      .json({
+        message: "Failed to register user due to server error.",
+        error: error.message,
+      });
   }
 };
 
@@ -57,19 +60,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    const user = await prisma.user.findUnique({ 
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        password: true, // Need password for comparison
-        createdAt: true,
-        updatedAt: true
-      }
-    });
-    
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user)
       return res.status(400).json({ message: "Invalid email or password" });
 
@@ -79,12 +70,14 @@ export const login = async (req: Request, res: Response) => {
 
     const tokens = genTokens(user.id);
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    res.json({ message: "User logged in successfully", user: userWithoutPassword, ...tokens });
+    res.json({ message: "User logged in successfully", user, ...tokens });
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to log in due to server error.", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Failed to log in due to server error.",
+        error: error.message,
+      });
   }
 };
 
@@ -104,7 +97,9 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     res.json({ message: "Access token refreshed successfully", ...tokens });
   } catch (error: any) {
-    res.status(403).json({ message: "Invalid refresh token", error: error.message });
+    res
+      .status(403)
+      .json({ message: "Invalid refresh token", error: error.message });
   }
 };
 

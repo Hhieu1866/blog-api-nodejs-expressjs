@@ -22,6 +22,7 @@ app.use(
   }),
 );
 app.use(express.json());
+app.use(errorHandler);
 
 // test
 // app.get("/api/health", (req, res) => {
@@ -42,10 +43,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api", commentRoutes);
 app.use("/api", categoryRoutes);
+app.use("/api", categoryRoutes);
 app.use("/api", tagRoutes);
-
-// Error handler middleware must be last
-app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
