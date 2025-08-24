@@ -5,9 +5,9 @@ import bcrypt from "bcrypt";
 
 const genTokens = (uid: string) => {
   const access = jwt.sign({ uid }, process.env.JWT_SECRET as string, {
-    expiresIn: "15m",
+    expiresIn: "30m",
   });
-  const refresh = jwt.sign({ uid }, process.env.JWT_SECRET as string, {
+  const refresh = jwt.sign({ uid }, process.env.JWT_REFRESH_SECRET as string, {
     expiresIn: "7d",
   });
   return { access, refresh };
@@ -29,7 +29,7 @@ export const register = async (req: Request, res: Response) => {
         email,
         name,
         password: hashedPassword,
-        role: "USER", // Default role for new registrations
+        role: "USER",
       },
       select: {
         id: true,
@@ -46,12 +46,10 @@ export const register = async (req: Request, res: Response) => {
       .status(201)
       .json({ message: "User registered successfully", user, ...tokens });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to register user due to server error.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Failed to register user due to server error.",
+      error: error.message,
+    });
   }
 };
 
@@ -70,14 +68,27 @@ export const login = async (req: Request, res: Response) => {
 
     const tokens = genTokens(user.id);
 
-    res.json({ message: "User logged in successfully", user, ...tokens });
+    const userWithoutPassword = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    res.json({
+      message: "User logged in successfully",
+      user: userWithoutPassword,
+      ...tokens,
+    });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to log in due to server error.",
-        error: error.message,
-      });
+    console.error("Login error:", error);
+    res.status(500).json({
+      message: "Failed to log in due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
@@ -93,17 +104,41 @@ export const refreshToken = async (req: Request, res: Response) => {
       process.env.JWT_REFRESH_SECRET as string,
     );
 
+    // verify user still exists
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.uid },
+      select: { id: true },
+    });
+
+    if (!user) return res.status(401).json({ message: "User not found" });
+
     const tokens = genTokens(decoded.uid);
 
     res.json({ message: "Access token refreshed successfully", ...tokens });
   } catch (error: any) {
-    res
-      .status(403)
-      .json({ message: "Invalid refresh token", error: error.message });
+    if (error.name === "JsonWebTokenError") {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+    if (error.name === "TokenExpiredError") {
+      return res.status(403).json({ message: "Refresh token expired" });
+    }
+
+    console.error("Refresh token error:", error);
+    res.status(500).json({
+      message: "Failed to refresh token due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
 // POST - /api/auth/logout
-export async function logout(_req: Request, res: Response) {
-  res.json({ message: "User logged out successfully" });
+export async function logout(req: Request, res: Response) {
+  try {
+    res.json({ message: "User logged out successfully" });
+  } catch (error: any) {
+    console.error("Logout error: ", error);
+    res.status(500).json({ message: "Failed to logout due to server error" });
+    error: process.env.NODE_ENV === "development" ? error.message : undefined;
+  }
 }
