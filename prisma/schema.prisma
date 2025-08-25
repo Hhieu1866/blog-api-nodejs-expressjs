@@ -8,15 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String    @id @default(cuid())
+  email     String    @unique
   name      String
   password  String
-  role      Role     @default(USER)
+  role      Role      @default(USER)
   posts     Post[]
   comments  Comment[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 enum Role {
@@ -25,19 +25,29 @@ enum Role {
 }
 
 model Post {
-  id         String     @id @default(cuid())
-  title      String
-  slug       String     @unique
-  content    String     @db.Text
-  published  Boolean    @default(false)
-  author     User       @relation(fields: [authorId], references: [id])
-  authorId   String
-  category   Category?  @relation(fields: [categoryId], references: [id])
-  categoryId String?
-  tags       Tag[]
-  comments   Comment[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  content      String
+  published    Boolean  @default(true)
+  thumbnailUrl String? // NEW: lưu URL Cloudinary
+  authorId     String
+  categoryId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Hashnode fields
+  hashnodeId      String?   @unique
+  hashnodeUrl     String?
+  isPublishedOnHashnode Boolean @default(false)
+
+  author   User      @relation(fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  tags     Tag[]
+  comments Comment[]
+
+  @@index([authorId])
+  @@index([categoryId])
 }
 
 model Comment {

@@ -1,24 +1,22 @@
 import { z } from "zod";
 
 export const createPostSchema = z.object({
-  title: z.string().min(1, "Title is required").max(255, "Title too long"),
-  content: z.string().min(1, "Content is required"),
-  categoryId: z.string().optional(),
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  content: z.string().min(6, "Content must be at least 6 characters"),
+  categoryId: z.string().optional().nullable(),
   tagIds: z.array(z.string()).optional(),
-  published: z.boolean().optional().default(true),
+  published: z.boolean().optional(),
+  thumbnailUrl: z.string().url().optional(),
 });
 
 export const updatePostSchema = z.object({
-  title: z
+  title: z.string().min(3, "Title must be at least 3 characters").optional(),
+  content: z
     .string()
-    .min(1, "Title is required")
-    .max(255, "Title too long")
+    .min(6, "Content must be at least 6 characters")
     .optional(),
-  content: z.string().min(1, "Content is required").optional(),
-  categoryId: z.string().optional(),
+  categoryId: z.string().optional().nullable(),
   tagIds: z.array(z.string()).optional(),
   published: z.boolean().optional(),
+  thumbnailUrl: z.string().url().optional(),
 });
-
-export type CreatePostInput = z.infer<typeof createPostSchema>;
-export type UpdatePostInput = z.infer<typeof updatePostSchema>;

@@ -3,16 +3,31 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { createPostSchema, updatePostSchema } from "../schemas/postSchema";
 
-// GET - /api/posts (pagination + search + filter by cate)
+// GET - /api/posts (pagination + search + filter by category, author, published status)
 export const getPosts = async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 6, search = "", category, authorId } = req.query;
+    const {
+      page = 1,
+      limit = 6,
+      search = "",
+      category,
+      authorId,
+      published,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
     const where: any = {};
+
     if (authorId) {
       where.authorId = String(authorId);
+    }
+
+    if (published !== undefined) {
+      where.published = published === "true";
     }
 
     if (search) {
@@ -21,8 +36,15 @@ export const getPosts = async (req: Request, res: Response) => {
         { content: { contains: String(search), mode: "insensitive" } },
       ];
     }
+
     if (category) {
-      where.category = { name: String(category) };
+      where.category = {
+        name: { contains: String(category), mode: "insensitive" },
+      };
+    }
+
+    if (req.query.categoryId) {
+      where.categoryId = String(req.query.categoryId);
     }
 
     const posts = await prisma.post.findMany({
@@ -34,7 +56,7 @@ export const getPosts = async (req: Request, res: Response) => {
         category: true,
         tags: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { [String(sortBy)]: String(sortOrder) },
     });
 
     const total = await prisma.post.count({ where });
@@ -46,12 +68,15 @@ export const getPosts = async (req: Request, res: Response) => {
         total,
         page: Number(page),
         limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
       },
     });
   } catch (error: any) {
+    console.error("Get posts error:", error);
     res.status(500).json({
-      message: "Failed to retrieve posts due to server error.",
-      error: error.message,
+      message: "Failed to retrieve posts due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -68,23 +93,26 @@ export const getPostById = async (req: Request, res: Response) => {
         category: true,
         tags: true,
         comments: {
-          include: {
-            author: { select: { id: true, name: true } },
-          },
+          include: { author: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
         },
       },
     });
 
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
-    res.json({ message: "Post retrieved successfully", post });
+    res.json({ message: "Post retrieved successfully", data: post });
   } catch (error: any) {
+    console.error("Get post error:", error);
     if (error.code === "P2023") {
       return res.status(400).json({ message: "Invalid post ID format" });
     }
     res.status(500).json({
-      message: "Failed to retrieve post due to server error.",
-      error: error.message,
+      message: "Failed to retrieve post due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -92,7 +120,7 @@ export const getPostById = async (req: Request, res: Response) => {
 // POST - /api/posts
 export const createPost = async (req: Request, res: Response) => {
   try {
-    // Validation
+    // Validate body (JSON, từ FE đã upload Cloudinary xong và gửi thumbnailUrl)
     const validationResult = createPostSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({
@@ -101,11 +129,16 @@ export const createPost = async (req: Request, res: Response) => {
       });
     }
 
-    const { title, content, categoryId, tagIds, published } =
+    const { title, content, categoryId, tagIds, published, thumbnailUrl } =
       validationResult.data;
-    const userId = (req as any).user.uid;
 
-    const slug = title.toLowerCase().replace(/\s+/g, "-");
+    const userId = (req as any).user.id;
+
+    // Generate slug
+    const slug = title
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
 
     const post = await prisma.post.create({
       data: {
@@ -114,15 +147,28 @@ export const createPost = async (req: Request, res: Response) => {
         content,
         published: published ?? true,
         authorId: userId,
-        categoryId,
+        categoryId: categoryId || null,
+        thumbnailUrl,
         tags: tagIds
-          ? { connect: tagIds.map((id: string) => ({ id })) }
+          ? {
+              connect: tagIds.map((id: string) => ({ id })),
+            }
           : undefined,
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        category: true,
+        tags: true,
       },
     });
 
-    res.status(201).json({ message: "Post created successfully", post });
+    res.status(201).json({
+      message: "Post created successfully",
+      data: post,
+    });
   } catch (error: any) {
+    console.error("Create post error:", error);
+
     if (error.code === "P2002") {
       return res
         .status(409)
@@ -131,9 +177,11 @@ export const createPost = async (req: Request, res: Response) => {
     if (error.code === "P2025") {
       return res.status(404).json({ message: "Category or tag not found" });
     }
+
     res.status(500).json({
-      message: "Failed to create post due to server error.",
-      error: error.message,
+      message: "Failed to create post due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -141,7 +189,6 @@ export const createPost = async (req: Request, res: Response) => {
 // PUT - /api/posts/:id
 export const updatePost = async (req: Request, res: Response) => {
   try {
-    // Validation
     const validationResult = updatePostSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({
@@ -151,10 +198,10 @@ export const updatePost = async (req: Request, res: Response) => {
     }
 
     const { id } = req.params;
-    const userId = (req as any).user.uid;
+    const userId = (req as any).user.id;
     const data = validationResult.data;
 
-    // Check authorization
+    // Check ownership
     const existingPost = await prisma.post.findUnique({
       where: { id },
       select: { authorId: true },
@@ -163,26 +210,46 @@ export const updatePost = async (req: Request, res: Response) => {
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
     }
-
     if (existingPost.authorId !== userId) {
       return res
         .status(403)
         .json({ message: "Unauthorized to update this post" });
     }
 
-    // Prepare update data
+    // Prepare update
     const updateData: any = { ...data };
+
+    // handle tagIds separately
+    const tagIds = updateData.tagIds;
+    delete updateData.tagIds;
+
+    // update slug if title changes
     if (data.title) {
-      updateData.slug = data.title.toLowerCase().replace(/\s+/g, "-");
+      updateData.slug = data.title
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+    }
+
+    // tags set
+    if (Array.isArray(tagIds)) {
+      updateData.tags = { set: tagIds.map((id: string) => ({ id })) };
     }
 
     const updatedPost = await prisma.post.update({
       where: { id },
-      data: updateData,
+      data: updateData, // may include thumbnailUrl
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        category: true,
+        tags: true,
+      },
     });
 
-    res.json({ message: "Post updated successfully", post: updatedPost });
+    res.json({ message: "Post updated successfully", data: updatedPost });
   } catch (error: any) {
+    console.error("Update post error:", error);
+
     if (error.code === "P2025") {
       return res.status(404).json({ message: "Post not found" });
     }
@@ -191,9 +258,11 @@ export const updatePost = async (req: Request, res: Response) => {
         .status(409)
         .json({ message: "Post with this title already exists" });
     }
+
     res.status(500).json({
-      message: "Failed to update post due to server error.",
-      error: error.message,
+      message: "Failed to update post due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -202,9 +271,8 @@ export const updatePost = async (req: Request, res: Response) => {
 export const deletePost = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.uid;
+    const userId = (req as any).user.id;
 
-    // Check authorization
     const post = await prisma.post.findUnique({
       where: { id },
       select: { authorId: true },
@@ -213,25 +281,26 @@ export const deletePost = async (req: Request, res: Response) => {
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
-
     if (post.authorId !== userId) {
       return res
         .status(403)
         .json({ message: "Unauthorized to delete this post" });
     }
 
-    await prisma.post.delete({
-      where: { id },
-    });
+    await prisma.post.delete({ where: { id } });
 
     res.json({ message: "Post deleted successfully" });
   } catch (error: any) {
+    console.error("Delete post error:", error);
+
     if (error.code === "P2025") {
       return res.status(404).json({ message: "Post not found" });
     }
+
     res.status(500).json({
-      message: "Failed to delete post due to server error.",
-      error: error.message,
+      message: "Failed to delete post due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
