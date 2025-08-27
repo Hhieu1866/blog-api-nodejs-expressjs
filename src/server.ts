@@ -8,7 +8,7 @@ import postRoutes from "./routes/postRoutes";
 import commentRoutes from "./routes/commentRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
 import tagRoutes from "./routes/tagRoutes";
-import hashnodeRoutes from "./routes/hashnodeRoutes";
+
 import { errorHandler } from "./middlewares/errorHandler";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -44,7 +44,7 @@ app.use("/api/posts", postRoutes);
 app.use("/api", commentRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/tags", tagRoutes);
-app.use("/api/hashnode", hashnodeRoutes);
+
 
 app.use(errorHandler);
 

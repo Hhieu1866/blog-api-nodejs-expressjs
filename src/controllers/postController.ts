@@ -32,14 +32,14 @@ export const getPosts = async (req: Request, res: Response) => {
 
     if (search) {
       where.OR = [
-        { title: { contains: String(search), mode: "insensitive" } },
-        { content: { contains: String(search), mode: "insensitive" } },
+        { title: { contains: String(search) } },
+        { content: { contains: String(search) } },
       ];
     }
 
     if (category) {
       where.category = {
-        name: { contains: String(category), mode: "insensitive" },
+        name: { contains: String(category) },
       };
     }
 
