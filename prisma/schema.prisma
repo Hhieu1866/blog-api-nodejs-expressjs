@@ -28,9 +28,9 @@ model Post {
   id           String   @id @default(cuid())
   title        String
   slug         String   @unique
-  content      String
+  content      String   @db.MediumText
   published    Boolean  @default(true)
-  thumbnailUrl String? // NEW: lưu URL Cloudinary
+  thumbnailUrl String? 
   authorId     String
   categoryId   String?
   createdAt    DateTime @default(now())
@@ -49,7 +49,7 @@ model Post {
 
 model Comment {
   id        String   @id @default(cuid())
-  content   String   @db.Text
+  content   String   @db.MediumText
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    String
   author    User     @relation(fields: [authorId], references: [id])

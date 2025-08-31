@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 
 const genTokens = (uid: string) => {
   const access = jwt.sign({ uid }, process.env.JWT_SECRET as string, {
-    expiresIn: "30m",
+    expiresIn: "7d",
   });
   const refresh = jwt.sign({ uid }, process.env.JWT_REFRESH_SECRET as string, {
     expiresIn: "7d",
