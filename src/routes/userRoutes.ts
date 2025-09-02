@@ -3,6 +3,7 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  changePassword,
 } from "../controllers/userController";
 import { authenticateToken } from "../middlewares/authMiddleware";
 
@@ -98,5 +99,48 @@ router.put("/:id", authenticateToken, updateUser);
  *         description: Failed to delete user due to server error.
  */
 router.delete("/:id", authenticateToken, deleteUser);
+
+/**
+ * @swagger
+ * /api/users/{id}/password:
+ *   put:
+ *     summary: Change user password
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The ID of the user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 example: oldpassword123
+ *               newPassword:
+ *                 type: string
+ *                 example: newpassword123
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Current password is incorrect
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Failed to change password due to server error.
+ */
+router.put("/:id/password", authenticateToken, changePassword);
 
 export default router;
