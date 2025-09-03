@@ -2,7 +2,36 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import bcrypt from "bcrypt";
 
-// export const  = async (req: Request, res: Response) => {}
+// GET - /api/users
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        _count: { select: { posts: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const data = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      createdAt: u.createdAt,
+      postsCount: u._count.posts,
+    }));
+
+    res.json({ message: "Users retrieved successfully", data });
+  } catch (error: any) {
+    res.status(500).json({
+      message: "Failed to retrieve users due to server error.",
+      error: error.message,
+    });
+  }
+};
 
 // GET - /api/users/:id
 export const getUserById = async (req: Request, res: Response) => {

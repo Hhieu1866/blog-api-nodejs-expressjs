@@ -4,10 +4,13 @@ import {
   updateUser,
   deleteUser,
   changePassword,
+  getAllUsers,
 } from "../controllers/userController";
 import { authenticateToken } from "../middlewares/authMiddleware";
 
 const router = Router();
+
+router.get("/", authenticateToken, getAllUsers);
 
 /**
  * @swagger
