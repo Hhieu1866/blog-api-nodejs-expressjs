@@ -3,6 +3,83 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { createPostSchema, updatePostSchema } from "../schemas/postSchema";
 
+export const getAdminPosts = async (req: Request, res: Response) => {
+  try {
+    const {
+      page = 1,
+      limit = 6,
+      search = "",
+      category,
+      authorId,
+      published,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const where: any = {};
+
+    if (authorId) {
+      where.authorId = String(authorId);
+    }
+
+    if (published !== undefined) {
+      where.published = published === "true";
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: String(search) } },
+        { content: { contains: String(search) } },
+      ];
+    }
+
+    if (category) {
+      where.category = {
+        name: { contains: String(category) },
+      };
+    }
+
+    if (req.query.categoryId) {
+      where.categoryId = String(req.query.categoryId);
+    }
+
+    const posts = await prisma.post.findMany({
+      skip,
+      take,
+      where,
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        category: true,
+        tags: true,
+      },
+      orderBy: { [String(sortBy)]: String(sortOrder) },
+    });
+
+    const total = await prisma.post.count({ where });
+
+    res.json({
+      message: "Posts retrieved successfully",
+      data: posts,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error: any) {
+    console.error("Get posts error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve posts due to server error",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 // GET - /api/posts (pagination + search + filter by category, author, published status)
 export const getPosts = async (req: Request, res: Response) => {
   try {

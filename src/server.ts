@@ -8,6 +8,7 @@ import postRoutes from "./routes/postRoutes";
 import commentRoutes from "./routes/commentRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
 import tagRoutes from "./routes/tagRoutes";
+import adminPostRoutes from "./routes/adminPostRoutes";
 
 import { errorHandler } from "./middlewares/errorHandler";
 import swaggerUi from "swagger-ui-express";
@@ -44,8 +45,7 @@ app.use("/api/posts", postRoutes);
 app.use("/api", commentRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/tags", tagRoutes);
-
-
+app.use("/api/admin/", adminPostRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;

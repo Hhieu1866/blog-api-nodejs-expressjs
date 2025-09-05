@@ -5,30 +5,121 @@ import bcrypt from "bcrypt";
 // GET - /api/users
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      role,
+      hasPosts,
+      createdFrom,
+      createdTo,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query as Record<string, string>;
+
+    // Pagination
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip =
+      Number.isFinite(pageNum) && pageNum > 0 ? (pageNum - 1) * limitNum : 0;
+    const take = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 10;
+
+    const where: any = {};
+
+    // Search filter - include email search
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    // Role filter
+    if (role === "ADMIN" || role === "USER") {
+      where.role = role;
+    }
+
+    // Posts filter - FIXED: hasPosts logic was wrong
+    if (hasPosts === "true") {
+      where.posts = { some: {} }; // Has at least one post
+    }
+    if (hasPosts === "false") {
+      where.posts = { none: {} }; // Has no posts
+    }
+
+    // Date range filter
+    if (createdFrom || createdTo) {
+      where.createdAt = {};
+      const from = createdFrom ? new Date(createdFrom) : null;
+      const to = createdTo ? new Date(createdTo) : null;
+
+      if (from && !isNaN(from.getTime())) {
+        where.createdAt.gte = from;
+      }
+      if (to && !isNaN(to.getTime())) {
+        // Add end of day to include full day
+        const endOfDay = new Date(to);
+        endOfDay.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endOfDay;
+      }
+    }
+
+    // Sort logic - FIXED: typos in sort direction
+    const direction = sortOrder === "asc" ? "asc" : "desc"; // Fixed "acs" typo
+    let orderBy: any = { createdAt: direction };
+
+    if (sortBy === "name" || sortBy === "email" || sortBy === "createdAt") {
+      orderBy = { [sortBy]: direction };
+    } else if (sortBy === "postsCount") {
+      orderBy = { posts: { _count: direction } };
+    }
+
+    // Fetch users with count
     const users = await prisma.user.findMany({
+      skip,
+      take,
+      where,
       select: {
         id: true,
         email: true,
         name: true,
+        role: true,
         createdAt: true,
         _count: { select: { posts: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy,
     });
 
+    // Get total count for pagination
+    const total = await prisma.user.count({ where });
+
+    // Transform data
     const data = users.map((u) => ({
       id: u.id,
       email: u.email,
       name: u.name,
+      role: u.role,
       createdAt: u.createdAt,
       postsCount: u._count.posts,
     }));
 
-    res.json({ message: "Users retrieved successfully", data });
+    // FIXED: Remove duplicate res.json() calls
+    res.json({
+      message: "Users retrieved successfully",
+      data,
+      pagination: {
+        total,
+        page: Math.max(1, pageNum || 1),
+        limit: take,
+        totalPages: Math.max(1, Math.ceil(total / take)),
+      },
+    });
   } catch (error: any) {
+    console.error("Get users error:", error);
     res.status(500).json({
       message: "Failed to retrieve users due to server error.",
-      error: error.message,
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
