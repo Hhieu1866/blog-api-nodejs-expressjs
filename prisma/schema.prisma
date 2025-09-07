@@ -30,17 +30,15 @@ model Post {
   slug         String   @unique
   content      String   @db.MediumText
   published    Boolean  @default(true)
-  thumbnailUrl String? 
+  thumbnailUrl String?
   authorId     String
   categoryId   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-
-
-  author   User      @relation(fields: [authorId], references: [id])
-  category Category? @relation(fields: [categoryId], references: [id])
-  tags     Tag[]
+  author   User       @relation(fields: [authorId], references: [id])
+  category Category?  @relation(fields: [categoryId], references: [id])
+  tags     PostTags[] 
   comments Comment[]
 
   @@index([authorId])
@@ -56,10 +54,10 @@ model Comment {
   authorId  String
   createdAt DateTime @default(now())
 
-  parentId   String?   @map("parent_id")
-  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies    Comment[] @relation("CommentReplies")
-  
+  parentId String?   @map("parent_id")
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
   @@index([parentId])
 }
 
@@ -70,7 +68,17 @@ model Category {
 }
 
 model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  posts Post[]
+  id    String     @id @default(cuid())
+  name  String     @unique
+  posts PostTags[] 
+}
+
+model PostTags {
+  postId String @map("post_id")
+  tagId  String @map("tag_id")
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId]) 
+  @@map("_PostToTag") 
 }

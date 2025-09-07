@@ -48,7 +48,6 @@ export const createTag = async (req: Request, res: Response) => {
       where: {
         name: {
           equals: name,
-          // mode: "insensitive", // Remove this line
         },
       },
     });
@@ -56,7 +55,7 @@ export const createTag = async (req: Request, res: Response) => {
     // Manual case-insensitive check
     const allTags = await prisma.tag.findMany();
     const existingTagCaseInsensitive = allTags.find(
-      tag => tag.name.toLowerCase() === name.toLowerCase()
+      (tag) => tag.name.toLowerCase() === name.toLowerCase(),
     );
 
     if (existingTagCaseInsensitive) {
@@ -125,12 +124,12 @@ export const updateTag = async (req: Request, res: Response) => {
     // Check if new name already exists (case insensitive, excluding current tag) - FIXED
     const allTags = await prisma.tag.findMany({
       where: {
-        NOT: { id }
-      }
+        NOT: { id },
+      },
     });
-    
+
     const duplicateTag = allTags.find(
-      tag => tag.name.toLowerCase() === name.toLowerCase()
+      (tag) => tag.name.toLowerCase() === name.toLowerCase(),
     );
 
     if (duplicateTag) {

@@ -53,7 +53,11 @@ export const getAdminPosts = async (req: Request, res: Response) => {
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        tags: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
       orderBy: { [String(sortBy)]: String(sortOrder) },
     });
@@ -131,7 +135,11 @@ export const getPosts = async (req: Request, res: Response) => {
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        tags: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
       orderBy: { [String(sortBy)]: String(sortOrder) },
     });
@@ -168,7 +176,11 @@ export const getPostById = async (req: Request, res: Response) => {
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        tags: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
         comments: {
           include: { author: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
@@ -228,14 +240,20 @@ export const createPost = async (req: Request, res: Response) => {
         thumbnailUrl,
         tags: tagIds
           ? {
-              connect: tagIds.map((id: string) => ({ id })),
+              create: tagIds.map((tagId: string) => ({
+                tag: { connect: { id: tagId } },
+              })),
             }
           : undefined,
       },
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        tags: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
     });
 
@@ -308,18 +326,32 @@ export const updatePost = async (req: Request, res: Response) => {
         .replace(/[^a-z0-9-]/g, "");
     }
 
-    // tags set
+    // tags set - XÓA HẾT RỒI TẠO LẠI
     if (Array.isArray(tagIds)) {
-      updateData.tags = { set: tagIds.map((id: string) => ({ id })) };
+      // First disconnect all existing tags
+      await prisma.postTags.deleteMany({
+        where: { postId: id },
+      });
+
+      // Then connect new tags
+      updateData.tags = {
+        create: tagIds.map((tagId: string) => ({
+          tag: { connect: { id: tagId } },
+        })),
+      };
     }
 
     const updatedPost = await prisma.post.update({
       where: { id },
-      data: updateData, // may include thumbnailUrl
+      data: updateData,
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        tags: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
     });
 
