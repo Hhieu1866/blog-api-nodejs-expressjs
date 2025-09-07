@@ -59,8 +59,9 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Blog API is up");
 });
 
-// Swagger docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger docs (split to satisfy Express typings)
+app.use("/api-docs", swaggerUi.serve);
+app.get("/api-docs", swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
