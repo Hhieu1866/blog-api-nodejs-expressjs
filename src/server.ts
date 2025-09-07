@@ -1,11 +1,11 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 
-// ROUTES (giữ nguyên cấu trúc dự án của bạn)
+// Routes
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
 import postRoutes from "./routes/postRoutes";
@@ -14,7 +14,7 @@ import categoryRoutes from "./routes/categoryRoutes";
 import tagRoutes from "./routes/tagRoutes";
 import adminPostRoutes from "./routes/adminPostRoutes";
 
-// SWAGGER & ERROR HANDLER (giữ nguyên)
+// Swagger & Error Handler
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -22,47 +22,37 @@ import { errorHandler } from "./middlewares/errorHandler";
 dotenv.config();
 
 const app = express();
-const isProd = process.env.NODE_ENV === "production";
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = process.env.PORT || 3001;
 
-// Cho phép nhiều origin từ ENV (FE local + FE prod)
-const origins = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+// Allowed origins from ENV
+const origins =
+  process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()) || [];
 
-// Security & basics
+// Security middleware
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(rateLimit({ windowMs: 60_000, limit: 300 }));
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
-// CORS cho cookie/JWT (credentials)
+// CORS setup
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin || origins.includes(origin)) return cb(null, true);
-      return cb(new Error("CORS blocked"), false);
-    },
+    origin: origins,
     credentials: true,
   }),
 );
 
-// Healthcheck để Render check container sống
-app.get("/healthz", (_req: Request, res: Response) =>
-  res.json({ ok: true, ts: Date.now() }),
-);
+// Health check
+app.get("/healthz", (req, res) => res.json({ ok: true }));
 
-// Root
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Blog API is up");
-});
+// Root endpoint
+app.get("/", (req, res) => res.send("Blog API is running"));
 
-// Swagger docs (split to satisfy Express typings)
-app.use("/api-docs", swaggerUi.serve);
-app.get("/api-docs", swaggerUi.setup(swaggerSpec));
+// API docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
@@ -71,8 +61,9 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/tags", tagRoutes);
 app.use("/api/admin", adminPostRoutes);
 
+// Error handling
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Server listening on :${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
