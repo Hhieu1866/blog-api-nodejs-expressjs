@@ -28,12 +28,8 @@ const PORT = process.env.PORT || 3001;
 const origins =
   process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()) || [];
 
-// Security middleware
-app.set("trust proxy", 1);
-app.use(helmet());
-app.use(rateLimit({ windowMs: 60_000, limit: 300 }));
+// Basic middleware
 app.use(express.json({ limit: "1mb" }));
-app.use(cookieParser());
 
 // CORS setup
 app.use(
@@ -50,7 +46,11 @@ app.get("/healthz", (req, res) => res.json({ ok: true }));
 app.get("/", (req, res) => res.send("Blog API is running"));
 
 // API docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  "/api-docs",
+  swaggerUi.serve as any,
+  swaggerUi.setup(swaggerSpec) as any,
+);
 
 // API routes
 app.use("/api/auth", authRoutes);
