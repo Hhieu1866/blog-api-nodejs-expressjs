@@ -3,14 +3,112 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.getUserById = void 0;
+exports.changePassword = exports.deleteUser = exports.updateUser = exports.getUserById = exports.getAllUsers = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
-// export const  = async (req: Request, res: Response) => {}
+// GET - /api/users
+const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = "", role, hasPosts, createdFrom, createdTo, sortBy = "createdAt", sortOrder = "desc", } = req.query;
+        // Pagination
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = Number.isFinite(pageNum) && pageNum > 0 ? (pageNum - 1) * limitNum : 0;
+        const take = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 10;
+        const where = {};
+        // Search filter - include email search
+        if (search) {
+            where.OR = [
+                { name: { contains: search } },
+                { email: { contains: search } },
+            ];
+        }
+        // Role filter
+        if (role === "ADMIN" || role === "USER") {
+            where.role = role;
+        }
+        // Posts filter - FIXED: hasPosts logic was wrong
+        if (hasPosts === "true") {
+            where.posts = { some: {} }; // Has at least one post
+        }
+        if (hasPosts === "false") {
+            where.posts = { none: {} }; // Has no posts
+        }
+        // Date range filter
+        if (createdFrom || createdTo) {
+            where.createdAt = {};
+            const from = createdFrom ? new Date(createdFrom) : null;
+            const to = createdTo ? new Date(createdTo) : null;
+            if (from && !isNaN(from.getTime())) {
+                where.createdAt.gte = from;
+            }
+            if (to && !isNaN(to.getTime())) {
+                // Add end of day to include full day
+                const endOfDay = new Date(to);
+                endOfDay.setHours(23, 59, 59, 999);
+                where.createdAt.lte = endOfDay;
+            }
+        }
+        // Sort logic - FIXED: typos in sort direction
+        const direction = sortOrder === "asc" ? "asc" : "desc"; // Fixed "acs" typo
+        let orderBy = { createdAt: direction };
+        if (sortBy === "name" || sortBy === "email" || sortBy === "createdAt") {
+            orderBy = { [sortBy]: direction };
+        }
+        else if (sortBy === "postsCount") {
+            orderBy = { posts: { _count: direction } };
+        }
+        // Fetch users with count
+        const users = await prisma_1.default.user.findMany({
+            skip,
+            take,
+            where,
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                createdAt: true,
+                _count: { select: { posts: true } },
+            },
+            orderBy,
+        });
+        // Get total count for pagination
+        const total = await prisma_1.default.user.count({ where });
+        // Transform data
+        const data = users.map((u) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            createdAt: u.createdAt,
+            postsCount: u._count.posts,
+        }));
+        // FIXED: Remove duplicate res.json() calls
+        res.json({
+            message: "Users retrieved successfully",
+            data,
+            pagination: {
+                total,
+                page: Math.max(1, pageNum || 1),
+                limit: take,
+                totalPages: Math.max(1, Math.ceil(total / take)),
+            },
+        });
+    }
+    catch (error) {
+        console.error("Get users error:", error);
+        res.status(500).json({
+            message: "Failed to retrieve users due to server error.",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+    }
+};
+exports.getAllUsers = getAllUsers;
 // GET - /api/users/:id
 const getUserById = async (req, res) => {
     try {
-        const { id } = req.body;
+        const { id } = req.params;
         const user = await prisma_1.default.user.findUnique({
             where: { id },
             select: { id: true, email: true, name: true, createdAt: true },
@@ -20,7 +118,10 @@ const getUserById = async (req, res) => {
         res.json({ message: "User retrieved successfully", user });
     }
     catch (error) {
-        res.status(500).json({ message: "Failed to retrieve user due to server error.", error: error.message });
+        res.status(500).json({
+            message: "Failed to retrieve user due to server error.",
+            error: error.message,
+        });
     }
 };
 exports.getUserById = getUserById;
@@ -44,7 +145,10 @@ const updateUser = async (req, res) => {
         res.json({ message: "User updated successfully", user: updated });
     }
     catch (error) {
-        res.status(500).json({ message: "Failed to update user due to server error.", error: error.message });
+        res.status(500).json({
+            message: "Failed to update user due to server error.",
+            error: error.message,
+        });
     }
 };
 exports.updateUser = updateUser;
@@ -58,7 +162,38 @@ const deleteUser = async (req, res) => {
         res.json({ message: "User deleted successfully" });
     }
     catch (error) {
-        res.status(500).json({ message: "Failed to delete user due to server error.", error: error.message });
+        res.status(500).json({
+            message: "Failed to delete user due to server error.",
+            error: error.message,
+        });
     }
 };
 exports.deleteUser = deleteUser;
+const changePassword = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { currentPassword, newPassword } = req.body;
+        // validate current password
+        const user = await prisma_1.default.user.findUnique({ where: { id } });
+        if (!user)
+            return res.status(404).json({ message: "User not found" });
+        const isValidPassword = await bcrypt_1.default.compare(currentPassword, user.password);
+        if (!isValidPassword)
+            return res
+                .status(400)
+                .json({ message: "Current password is incorrect" });
+        const hashedPassword = await bcrypt_1.default.hash(newPassword, 10);
+        await prisma_1.default.user.update({
+            where: { id },
+            data: { password: hashedPassword },
+        });
+        res.json({ message: "Password changed successfully" });
+    }
+    catch (error) {
+        res.status(500).json({
+            message: "Failed to change password due to server error.",
+            error: error.message,
+        });
+    }
+};
+exports.changePassword = changePassword;

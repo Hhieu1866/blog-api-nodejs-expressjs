@@ -9,13 +9,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     const comments = await prisma.comment.findMany({
       where: { postId },
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        author: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -35,20 +29,16 @@ export const createComment = async (req: Request, res: Response) => {
     const { postId } = req.params;
     const { content, parentId } = req.body;
 
-    if (!content)
+    if (!content?.trim())
       return res.status(400).json({ message: "Comment content is required" });
 
     if (parentId) {
       const parentComment = await prisma.comment.findUnique({
         where: { id: parentId },
       });
-
       if (!parentComment) {
-        return res.status(400).json({
-          message: "Parent comment not found",
-        });
+        return res.status(400).json({ message: "Parent comment not found" });
       }
-
       if (parentComment.postId !== postId) {
         return res.status(400).json({ message: "Invalid parent comment" });
       }
@@ -56,19 +46,13 @@ export const createComment = async (req: Request, res: Response) => {
 
     const comment = await prisma.comment.create({
       data: {
-        content,
+        content: content.trim(),
         postId,
         authorId: (req as any).user.id,
         parentId: parentId || null,
       },
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        author: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -87,12 +71,32 @@ export const updateComment = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { content } = req.body;
 
-    if (!content)
+    if (!content?.trim())
       return res.status(400).json({ message: "Comment content is required" });
+
+    const actorId = (req as any).user?.id;
+    const actorRole = (req as any).user?.role;
+
+    const existing = await prisma.comment.findUnique({
+      where: { id },
+      select: { id: true, authorId: true },
+    });
+    if (!existing)
+      return res.status(404).json({ message: "Comment not found" });
+
+    const isOwner = existing.authorId === actorId;
+    const isAdmin = actorRole === "ADMIN";
+    if (!isOwner && !isAdmin)
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to edit this comment" });
 
     const updatedComment = await prisma.comment.update({
       where: { id },
-      data: { content },
+      data: { content: content.trim() },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+      },
     });
 
     res.json({
@@ -112,10 +116,24 @@ export const deleteComment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    await prisma.comment.delete({
-      where: { id },
-    });
+    const actorId = (req as any).user?.id;
+    const actorRole = (req as any).user?.role;
 
+    const existing = await prisma.comment.findUnique({
+      where: { id },
+      select: { id: true, authorId: true },
+    });
+    if (!existing)
+      return res.status(404).json({ message: "Comment not found" });
+
+    const isOwner = existing.authorId === actorId;
+    const isAdmin = actorRole === "ADMIN";
+    if (!isOwner && !isAdmin)
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to delete this comment" });
+
+    await prisma.comment.delete({ where: { id } });
     res.json({ message: "Comment deleted successfully" });
   } catch (error: any) {
     res.status(500).json({

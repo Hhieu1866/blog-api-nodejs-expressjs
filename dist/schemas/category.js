@@ -1,14 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTagSchema = void 0;
+exports.createCategorySchema = void 0;
+// src/schemas/categorySchema.ts
 const zod_1 = require("zod");
-exports.createTagSchema = zod_1.z.object({
+exports.createCategorySchema = zod_1.z.object({
     name: zod_1.z
         .string()
         .min(1, { message: "Tag name is required" })
         .max(10, { message: "Tag name too long" }),
-    // .regex(/^[a-zA-Z0-9\s\-_]+$/, {
-    //   message:
-    //     "Tag name can only contain letters, numbers, spaces, hyphens and underscores",
-    // }),
 });

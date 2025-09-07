@@ -4,5 +4,8 @@ exports.updateCommentSchema = exports.createCommentSchema = void 0;
 const zod_1 = require("zod");
 exports.createCommentSchema = zod_1.z.object({
     content: zod_1.z.string().min(1, { message: "Content là bắt buộc" }),
+    parentId: zod_1.z.string().uuid().optional().nullable(),
 });
-exports.updateCommentSchema = exports.createCommentSchema;
+exports.updateCommentSchema = zod_1.z.object({
+    content: zod_1.z.string().min(1, { message: "Content là bắt buộc" }).optional(),
+});
