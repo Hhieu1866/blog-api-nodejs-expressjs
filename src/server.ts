@@ -34,7 +34,7 @@ app.use(express.json({ limit: "1mb" }));
 // CORS setup
 app.use(
   cors({
-    origin: origins,
+    origin: "http://localhost:3000",
     credentials: true,
   }),
 );
@@ -43,7 +43,7 @@ app.use(
 app.get("/healthz", (req, res) => res.json({ ok: true }));
 
 // Root endpoint
-app.get("/", (req, res) => res.send("Blog API is running"));
+app.get("/", (req, res) => res.send("Blog API is running rồi nhé!!!!"));
 
 // API docs
 app.use(

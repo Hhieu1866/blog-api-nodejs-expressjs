@@ -64,7 +64,6 @@ export const getAllUsers = async (req: Request, res: Response) => {
       }
     }
 
-    // Sort logic - FIXED: typos in sort direction
     const direction = sortOrder === "asc" ? "asc" : "desc"; // Fixed "acs" typo
     let orderBy: any = { createdAt: direction };
 
@@ -103,7 +102,6 @@ export const getAllUsers = async (req: Request, res: Response) => {
       postsCount: u._count.posts,
     }));
 
-    // FIXED: Remove duplicate res.json() calls
     res.json({
       message: "Users retrieved successfully",
       data,
