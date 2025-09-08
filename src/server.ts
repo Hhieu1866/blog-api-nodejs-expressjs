@@ -34,7 +34,7 @@ app.use(express.json({ limit: "1mb" }));
 // CORS setup
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: origins.length > 0 ? origins : "http://localhost:3000",
     credentials: true,
   }),
 );
